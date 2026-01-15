@@ -3,9 +3,7 @@
 use std::time::Duration;
 
 use crate::websocket::CCWebsocket;
-use tokio::{net::{TcpListener, TcpStream}, sync::mpsc};
-use tokio_tungstenite::{accept_async, tungstenite::Message};
-use futures_util::{SinkExt, StreamExt};
+use tokio::net::TcpListener;
 
 
 
@@ -25,7 +23,7 @@ async fn try_start_emulator() {
 
     // start craftos emulator
     let mut process_command = std::process::Command::new("C:\\Program Files\\CraftOS-PC\\CraftOS-PC.exe");
-    let mut cc_emulator = process_command
+    let cc_emulator = process_command
         .arg("--exec")
         .arg(TEMP_TEST_SCRIPT);
 

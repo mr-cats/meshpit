@@ -1,6 +1,6 @@
 // management of the websocket
 
-use tokio::{net::{TcpListener, TcpStream}, sync::mpsc};
+use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 use futures_util::{SinkExt, StreamExt};
 
@@ -50,6 +50,7 @@ impl CCWebsocket {
         (Self { outgoing_tx }, incoming_rx)
     }
     /// Send a message out the websocket
+    #[allow(clippy::result_unit_err)] // will fix later! // TODO:
     pub fn send(&self, string: String) -> Result<(), ()> {
         // TODO: non-string type
         // TODO: error handling
