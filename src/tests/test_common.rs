@@ -10,7 +10,7 @@ use crate::websocket::CCWebsocket;
 /// Dropping the test handle will close the emulator.
 /// Also returns the receiver for the computer.
 pub async fn get_test_computer(config: TestEmulatorConfig) -> (TestHandle, mpsc::UnboundedReceiver<String>) {
-    let child_process = get_test_emulator(&config);
+    let child = get_test_emulator(&config);
 
     // if there is no incoming lua code, we wont be getting a stream... therefore we will not 
     // call that with no lua input.
@@ -18,10 +18,20 @@ pub async fn get_test_computer(config: TestEmulatorConfig) -> (TestHandle, mpsc:
     let stream = get_test_stream(&config).await;
     let tuple = CCWebsocket::new(stream.expect("Tests expect a websocket to open.")).await;
     let handle = TestHandle {
-        child_process,
+        process: ProcessGuard {child},
         websocket: tuple.0
     };
     (handle, tuple.1)
+}
+
+/// Start a socket-less computercraft emulator to test with.
+/// 
+/// This should be used to test things like mesh networking, since they cannot reach back out.
+pub async fn get_socket_less_test_computer(config: TestEmulatorConfig) -> SocketLessTestHandle {
+    let child = get_test_emulator(&config);
+    SocketLessTestHandle {
+        process: ProcessGuard {child},
+    }
 }
 
 /// Start a Minecraft server and setup a turtle testing environment
@@ -60,16 +70,25 @@ async fn get_test_stream(config: &TestEmulatorConfig) -> Option<TcpStream> {
 }
 
 pub struct TestHandle {
-    pub child_process: Child,
+    pub process: ProcessGuard,
     pub websocket: CCWebsocket
 }
 
-impl Drop for TestHandle {
+pub struct SocketLessTestHandle {
+    pub process: ProcessGuard,
+    // pub websocket: CCWebsocket
+}
+
+pub struct ProcessGuard {
+    pub child: Child
+}
+
+impl Drop for ProcessGuard {
     fn drop(&mut self) {
         // close the emulator, assuming it closed itself.
         #[allow(clippy::needless_late_init)] // todo: is this lint broken?
         let needs_closing: bool;
-        match self.child_process.try_wait() {
+        match self.child.try_wait() {
             Ok(ok) => {
                 needs_closing = ok.is_none();
             }, // closed right
@@ -80,7 +99,7 @@ impl Drop for TestHandle {
 
         if needs_closing {
             // child was not ready to close their lemonade stand, kill them
-            match self.child_process.kill() {
+            match self.child.kill() {
                 Ok(_) => (),
                 Err(err) => {
                     // er...
@@ -108,10 +127,7 @@ impl TestEmulatorConfig {
     /// 
     /// id is optional, if not provided, we default to 0.
     pub fn new(id: Option<u16>, ip: SocketAddrV4, lua_code: String) -> Self {
-        let id_bind = match id {
-            Some(some) => some,
-            None => 0,
-        };
+        let id_bind = id.unwrap_or_default();
         Self {
             id: id_bind,
             ip,

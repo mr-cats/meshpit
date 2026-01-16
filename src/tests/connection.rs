@@ -1,7 +1,7 @@
 // basic connection tests to the computercraft emulator.
 
 use std::net::{Ipv4Addr, SocketAddrV4};
-use crate::tests::test_common::{get_test_computer, TestEmulatorConfig};
+use crate::tests::test_common::{get_socket_less_test_computer, get_test_computer, TestEmulatorConfig};
 
 #[tokio::test]
 #[ntest::timeout(2000)]
@@ -28,7 +28,7 @@ async fn try_handshake() {
     let config = TestEmulatorConfig::new(None, addr, TEMP_TEST_SCRIPT.to_string());
     let (mut handle, mut incoming) = get_test_computer(config).await;
     let socket = &handle.websocket;
-    let spawned = &mut handle.child_process;
+    let spawned = &mut handle.process.child;
     
     // get the hello
     let hello = incoming.recv().await.unwrap();
@@ -43,6 +43,18 @@ async fn try_handshake() {
 
     // wait for the cc emulator to die
     spawned.wait().unwrap();
+}
+
+#[tokio::test]
+#[ntest::timeout(2000)]
+/// Spawn a socket-less computer
+async fn try_socket_less_computer() {
+    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
+    let config = TestEmulatorConfig::new(None, addr, TEMP_TEST_SCRIPT.to_string());
+    #[allow(unused_variables)]
+    let wow = get_socket_less_test_computer(config).await;
+
+    // Well, not much we can do with it besides open and close it so... lol
 }
 
 
