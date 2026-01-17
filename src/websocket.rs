@@ -1,9 +1,8 @@
 // management of the websocket
 
+use futures_util::{SinkExt, StreamExt};
 use tokio::{net::TcpStream, sync::mpsc};
 use tokio_tungstenite::{accept_async, tungstenite::Message};
-use futures_util::{SinkExt, StreamExt};
-
 
 pub struct CCWebsocket {
     // Messages put into this channel are sent into Minecraft.
@@ -15,8 +14,10 @@ impl CCWebsocket {
     /// Make a new websocket connection.
     pub async fn new(stream: TcpStream) -> (Self, mpsc::UnboundedReceiver<String>) {
         // TODO: error handling
-        let websocket_stream = accept_async(stream).await.expect("Failed to accept websocket!");
-        
+        let websocket_stream = accept_async(stream)
+            .await
+            .expect("Failed to accept websocket!");
+
         // Split the websocket into its sender and receiver components
         let (mut websocket_sender, mut websocket_receiver) = websocket_stream.split();
 
@@ -32,7 +33,10 @@ impl CCWebsocket {
         tokio::spawn(async move {
             while let Some(outgoing) = outgoing_rx.recv().await {
                 // TODO: detect failures in sending
-                websocket_sender.send(Message::Text(outgoing.into())).await.unwrap();
+                websocket_sender
+                    .send(Message::Text(outgoing.into()))
+                    .await
+                    .unwrap();
             }
         });
 
@@ -42,7 +46,6 @@ impl CCWebsocket {
                 // TODO: Error handling
                 let text = incoming.unwrap().into_text().unwrap();
                 incoming_tx.send(text.to_string()).unwrap()
-                
             }
         });
 

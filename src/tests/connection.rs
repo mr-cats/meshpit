@@ -1,64 +1,54 @@
 // basic connection tests to the computercraft emulator.
 
-use std::net::{Ipv4Addr, SocketAddrV4};
-use crate::tests::test_common::{get_socket_less_test_computer, get_test_computer, TestEmulatorConfig};
+use log::info;
 
-#[tokio::test]
-#[ntest::timeout(2000)]
-/// Just try to start the emulator to make sure it exists at all.
-async fn try_start_emulator() {
-    // we assume that the address is localhost, bc yk, test.
-    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
-    // dont pass anything for the emulator to run, also use the default ID
-    let config = TestEmulatorConfig::new(None, addr, SOCKET_TEMPLATE_LUA.to_string());
-    let (handle, _) = get_test_computer(config).await;
-    
-    // with no lua, the bot wont close itself, so we will just kill the process.
-    drop(handle)
+use crate::tests::bridge::{MINECRAFT_ENV, MinecraftEnvironment};
+
+#[cfg(test)]
+#[ctor::ctor] // ctor forces this to run before everything else, so the logger outputs correctly. Yeah a bit heavy handed lol.
+fn init_test_logging() {
+    let _ = env_logger::builder()
+        .is_test(true)
+        .filter_level(log::LevelFilter::Info)
+        .try_init();
+}
+
+#[cfg(test)]
+#[ctor::dtor] // When all of the tests are over, we need to clean up (ie shut down) the minecraft server.
+fn post_test_shutdown() {
+    info!("Running post-test cleanup...");
+    // function is async so we need another thread.
+    let handle = std::thread::spawn(|| {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Should be able to spawn a runtime for lazy making.");
+
+        #[allow(clippy::await_holding_lock)] //TODO: idk what it wants, fix later
+        rt.block_on(async {
+            let mut guard = MINECRAFT_ENV
+                .lock()
+                .expect("We should have the only reference");
+            let server: &mut MinecraftEnvironment = &mut guard;
+            server.shutdown_and_wait().await;
+        })
+    });
+    info!("Done cleaning up. Goodbye.");
 }
 
 #[tokio::test]
-#[ntest::timeout(2000)]
-/// Try a basic handshake with the emulator to make sure that networking is working.
-async fn try_handshake() {
-    
-    // we assume that the address is localhost, bc yk, test.
-    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
-    // default ID
-    let config = TestEmulatorConfig::new(None, addr, TEMP_TEST_SCRIPT.to_string());
-    let (mut handle, mut incoming) = get_test_computer(config).await;
-    let socket = &handle.websocket;
-    let spawned = &mut handle.process.child;
-    
-    // get the hello
-    let hello = incoming.recv().await.unwrap();
-    assert_eq!(hello, "hello");
-    
-    // send da ack
-    socket.send("ack".to_string()).unwrap();
-    
-    // we should hear an ack back before it closes.
-    let ack = incoming.recv().await.unwrap();
-    assert_eq!(ack, "ack");
-
-    // wait for the cc emulator to die
-    spawned.wait().unwrap();
+#[ntest::timeout(300_000)]
+/// Basic test to see if the Minecraft server is actually running.
+async fn test_start_server() {
+    let mut guard = MINECRAFT_ENV
+        .lock()
+        .expect("We should have the only reference");
+    let server: &mut MinecraftEnvironment = &mut guard;
+    info!("Test: {server:#?}");
+    assert!(server.is_running());
 }
 
-#[tokio::test]
-#[ntest::timeout(2000)]
-/// Spawn a socket-less computer
-async fn try_socket_less_computer() {
-    let addr = SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 8080);
-    let config = TestEmulatorConfig::new(None, addr, TEMP_TEST_SCRIPT.to_string());
-    #[allow(unused_variables)]
-    let wow = get_socket_less_test_computer(config).await;
-
-    // Well, not much we can do with it besides open and close it so... lol
-}
-
-
-
+// TODO: basic computer networking test.
 
 const TEMP_TEST_SCRIPT: &str = r#"
 local url = "ws://127.0.0.1:8080"
