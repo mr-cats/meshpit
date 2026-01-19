@@ -9,9 +9,8 @@ use crate::minecraft::computercraft::{modded_blocks::MODDED_BLOCKS, modded_items
 //TODO: id fields for easier/faster casting
 static MODDED_DATA: Lazy<Arc<ModdedIndexedData>> = Lazy::new(|| {
     ModdedIndexedData {
-        // this clone only happens once at startup, shouldn't be a huge deal.
-        items_by_name: Arc::new((*MODDED_ITEMS).clone()),
-        blocks_by_name: Arc::new((*MODDED_BLOCKS).clone()),
+        items_by_name: &MODDED_ITEMS,
+        blocks_by_name: &MODDED_BLOCKS,
     }
     .into()
 });
@@ -20,6 +19,9 @@ pub fn get_modded_data() -> &'static ModdedIndexedData {
     #[allow(clippy::explicit_auto_deref)] // want to show the deref happening
     &**MODDED_DATA
 }
+
+// We can remove clones here by changing the inside of the struct to get rid of the arc.
+// To do this conversion: just replace `Arc<T>` with `&'static T`
 
 /// copy of the minecraft indexed data struct, so code is cleaner. yes this is goofy af.
 ///
@@ -34,13 +36,13 @@ pub struct ModdedIndexedData {
     // Blocks
     // pub blocks_array: Arc<Vec<Block>>,
     // pub blocks_by_id: Arc<HashMap<u32, Block>>,
-    pub blocks_by_name: Arc<HashMap<String, Block>>,
+    pub blocks_by_name: &'static HashMap<String, Block>,
     // pub blocks_by_state_id: Arc<HashMap<u32, Block>>,
 
     // Items
     // pub items_array: Arc<Vec<Item>>,
     // pub items_by_id: Arc<HashMap<u32, Item>>,
-    pub items_by_name: Arc<HashMap<String, Item>>,
+    pub items_by_name: &'static HashMap<String, Item>,
     // Biomes
     // pub biomes_array: Arc<Vec<Biome>>,
     // pub biomes_by_id: Arc<HashMap<u32, Biome>>,

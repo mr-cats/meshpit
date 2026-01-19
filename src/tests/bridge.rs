@@ -93,14 +93,14 @@ impl MinecraftEnvironment {
         } else {
             // run setup first.
             info!("Server not present, doing initial server setup...");
-            MinecraftEnvironment::setup(server_dir.clone()).await;
+            MinecraftEnvironment::setup(&server_dir).await;
             info!("Done with first time server setup.");
         }
 
         let mut server = MinecraftEnvironment {
             process: None,
             rcon_connection: None,
-            server_dir: server_dir.clone(),
+            server_dir,
         };
 
         // clean up old saves
@@ -128,13 +128,13 @@ impl MinecraftEnvironment {
         self.process.is_some()
     }
     /// Get the server folder
-    pub fn get_server_folder(&self) -> PathBuf {
-        self.server_dir.clone()
+    pub fn get_server_folder(&self) -> &PathBuf {
+        &self.server_dir
     }
     /// Set up the server environment via downloading, installing, and configuring.
-    async fn setup(server_dir: PathBuf) {
+    async fn setup(server_dir: &PathBuf) {
         // make the dir
-        if let Err(error) = std::fs::create_dir(&server_dir) {
+        if let Err(error) = std::fs::create_dir(server_dir) {
             error!("Unable to setup server directory! Do we have permission?");
             error!("Error: {error:#?}");
             panic!();
@@ -164,7 +164,7 @@ impl MinecraftEnvironment {
             .arg("-jar")
             .arg("installer.jar")
             .arg("--installServer")
-            .current_dir(&server_dir)
+            .current_dir(server_dir)
             .stdout(std::process::Stdio::inherit()) // we print everything to the console just so
             .stderr(std::process::Stdio::inherit()) // if it fails, its easier to see. lol.
             .status()
@@ -207,20 +207,25 @@ impl MinecraftEnvironment {
                 .expect("Should be able to cast to bytes.");
             fs::write(mod_folder.join(mod_filename), download).expect("Should be able to write");
         }
-
+        
         info!("Finished downloading mods!");
-
+        
         info!("Accepting EULA...");
         let eula_path = server_dir.join("eula.txt");
         fs::write(eula_path, "eula=true").expect("should be able to make the eula file");
-
+        
         // now, since we need to edit the computercraft toml, we actually have to start the server for a split second.
         info!("Starting server to get things ready... (This may take a while)");
+        
+        // We're going to move the server dir into the following struct, so we'll set up the rest of the relative paths here
+        let config_dir = server_dir.join("config");
+        let java_args_file = server_dir.join("user_jvm_args.txt");
+        let server_properties_file = server_dir.join("server.properties");
 
         let mut server = MinecraftEnvironment {
             process: None,
             rcon_connection: None,
-            server_dir: server_dir.clone(),
+            server_dir: server_dir.to_path_buf(),
         };
 
         server.start_and_wait().await;
@@ -232,7 +237,6 @@ impl MinecraftEnvironment {
         // now the toml files should be where we want them, go edit them
         info!("Configuring computercraft...");
 
-        let config_dir = server_dir.join("config");
         let computercraft_toml = config_dir.join("computercraft-server.toml");
 
         // we expect this to exist
@@ -271,7 +275,6 @@ impl MinecraftEnvironment {
         // -XX:+UseZGC -XX:+UseCompactObjectHeaders <- java 25
 
         info!("Setting java args...");
-        let java_args_file = server_dir.join("user_jvm_args.txt");
         let mut args_editor = OpenOptions::new()
             .append(true)
             .create(false)
@@ -285,7 +288,6 @@ impl MinecraftEnvironment {
 
         // Enable rcon
         info!("Setting up server.properties...");
-        let server_properties_file = server_dir.join("server.properties");
         let mut properties_text =
             fs::read_to_string(&server_properties_file).expect("Should exist.");
 
@@ -338,7 +340,7 @@ impl MinecraftEnvironment {
     /// This should be called before every _run_ of tests, not _each_ test.
     fn cleanup(&self) {
         // Delete the saves directory, since we want a fresh testing world every time.
-        let saves_dir = self.server_dir.clone().join("world");
+        let saves_dir = self.server_dir.join("world");
         if saves_dir.exists() {
             // toss it
             if let Err(error) = std::fs::remove_dir_all(saves_dir) {

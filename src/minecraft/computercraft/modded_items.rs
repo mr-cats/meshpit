@@ -395,6 +395,8 @@ pub(super) static MODDED_ITEMS: Lazy<HashMap<String, Item>> = Lazy::new(|| {
 // ===
 
 #[cfg(test)]
+use crate::minecraft::computercraft::modded_data::get_modded_data;
+#[cfg(test)]
 use crate::minecraft::vanilla::data_globals::get_mc_data;
 
 #[test]
@@ -404,46 +406,32 @@ use crate::minecraft::vanilla::data_globals::get_mc_data;
 ///
 /// Make sure that all the items' keys are the same as their names.
 fn check_modded_items() {
-    let mut modded_values: Vec<Item> = MODDED_ITEMS.clone().into_values().collect();
-    // yeah idk what this is either
-    let mut vanilla_values: Vec<Item> = <std::collections::HashMap<
-        std::string::String,
-        mcdata_rs::Item,
-    > as Clone>::clone(&get_mc_data().items_by_name)
-    .into_values()
-    .collect();
+    let modded_values: &mut Vec<&Item> = &mut get_modded_data().items_by_name.values().collect();
+    let vanilla_values: &mut Vec<&Item> = &mut get_mc_data().items_by_name.values().collect();
 
     // Sort the vec by id
     modded_values.sort_unstable_by_key(|item| item.id);
     vanilla_values.sort_unstable_by_key(|item| item.id);
 
-    // check for duplicate item id's per vec
-    let mut modded_dedup = modded_values.clone();
-    modded_dedup.dedup_by(|a, b| a.id == b.id);
-    assert_eq!(modded_dedup.len(), modded_values.len());
-
-    let mut vanilla_dedup = vanilla_values.clone();
-    vanilla_dedup.dedup_by(|a, b| a.id == b.id);
-    assert_eq!(vanilla_dedup.len(), vanilla_values.len());
-
-    // check if any item id is in both vecs
+    // check for duplicate Item id's per vec
+    assert!(!modded_values.windows(2).any(|w| w[0].id == w[1].id));
+    assert!(!vanilla_values.windows(2).any(|w| w[0].id == w[1].id));
+    
+    // check if any Item id is in both vecs
     // this is easily done by just combining the vecs and sorting again.
-    let mut combined: Vec<Item> = Vec::with_capacity(vanilla_dedup.len() + modded_dedup.len());
-    combined.extend(vanilla_dedup);
-    combined.extend(modded_dedup);
+    let combined: &mut Vec<&Item> = &mut Vec::with_capacity(vanilla_values.len() + modded_values.len());
+    combined.extend(&*vanilla_values); // how does dereferencing and borrowing again work here? Beats me.
+    combined.extend(&*modded_values);
     // this should already be in order anyways, if all goes well.
     combined.sort_unstable_by_key(|item| item.id);
-    let combine_length = combined.len();
-    combined.dedup_by(|a, b| a.id == b.id);
-    assert_eq!(combined.len(), combine_length);
+    assert!(!combined.windows(2).any(|w| w[0].id == w[1].id));
 
-    // Check for duplicate item names
-    combined.dedup_by(|a, b| a.name == b.name);
-    assert_eq!(combined.len(), combine_length);
+    // Check for duplicate Item names
+    assert!(!combined.windows(2).any(|w| w[0].name == w[1].name));
 
     // We dont check for duplicate display names, since that is a normal thing to have.
 
-    // check that the keys match the modded item names.
+    // check that the keys match the modded Item names.
     let modded_values_two = &MODDED_ITEMS;
     for (key, value) in modded_values_two.iter() {
         assert_eq!(key, &value.name)
