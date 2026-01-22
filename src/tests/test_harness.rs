@@ -43,7 +43,8 @@ impl MinecraftTestEnvironment {
         // Load and lock that global, its ours!
         Self {
             environment,
-            next_plot_corner: MinecraftPosition { x: 0, y: -60, z: 0 },
+            // This does not need a facing direction.
+            next_plot_corner: MinecraftPosition { x: 0, y: -60, z: 0, facing: None },
         }
     }
 }
@@ -354,7 +355,7 @@ impl MinecraftTestEnvironment {
                         TurtleFuelSetup::Empty => { /* nothing to do */ }
                         TurtleFuelSetup::Fueled => {
                             // place a hopper above the turtle
-                            let up_one = MinecraftPosition { x: 0, y: 1, z: 0 };
+                            let up_one = MinecraftPosition { x: 0, y: 1, z: 0, facing: None };
                             let offset_1 = computer_position.with_offset(up_one);
                             let offset_2 = offset_1.with_offset(up_one);
 
@@ -417,6 +418,7 @@ impl MinecraftTestEnvironment {
             x: corner.x + i64::from(test.area.size_x),
             y: corner.y,
             z: corner.z + i64::from(test.area.size_z),
+            facing: None
         }
         .as_command_string();
         let block = floor_block.get_full_name();
@@ -444,6 +446,7 @@ impl MinecraftTestEnvironment {
             x: give_me.x + i64::from(test.area.size_x) + 4, // gap between each test
             y: give_me.y,
             z: give_me.z, // we just move along x.
+            facing: None
         };
         self.next_plot_corner = next;
         give_me

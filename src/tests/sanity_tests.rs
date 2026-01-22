@@ -20,41 +20,41 @@ async fn basic_block_test() {
 
     // gold base
     let base = TestSetupCommand::Fill(
-        MinecraftPosition { x: 1, y: 1, z: 1 },
-        MinecraftPosition { x: 3, y: 1, z: 3 },
+        MinecraftPosition { x: 1, y: 1, z: 1, facing: None },
+        MinecraftPosition { x: 3, y: 1, z: 3, facing: None },
         MinecraftBlock::from_string("gold_block").unwrap(),
     );
 
     // netherrack
     let rack = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 2, z: 2 },
+        MinecraftPosition { x: 2, y: 2, z: 2, facing: None },
         MinecraftBlock::from_string("netherrack").unwrap(),
     );
 
     // fire
     let fire = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 3, z: 2 },
+        MinecraftPosition { x: 2, y: 3, z: 2, facing: None },
         MinecraftBlock::from_string("fire").unwrap(),
     );
 
     // torch1
     let torch1 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 1, y: 2, z: 2 },
+        MinecraftPosition { x: 1, y: 2, z: 2, facing: None },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
     // torch2
     let torch2 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 2, z: 1 },
+        MinecraftPosition { x: 2, y: 2, z: 1, facing: None },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
     // torch3
     let torch3 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 3, y: 2, z: 2 },
+        MinecraftPosition { x: 3, y: 2, z: 2, facing: None },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
     // torch4
     let torch4 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 2, z: 3 },
+        MinecraftPosition { x: 2, y: 2, z: 3, facing: None },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
 
@@ -82,7 +82,8 @@ async fn basic_computer_test() {
         size_z: 3,
     };
 
-    let computer_position = MinecraftPosition { x: 1, y: 1, z: 1 };
+    // The facing direction of this computer does not matter.
+    let computer_position = MinecraftPosition { x: 1, y: 1, z: 1, facing: None };
 
     let computer = ComputerSetup::new(
         ComputerKind::Basic,
