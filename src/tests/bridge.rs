@@ -396,7 +396,7 @@ impl MinecraftEnvironment {
 
             // we have to wait a tiny bit between every rcon command to make sure that
             // block states and stuff have time to update. So we wait just over a tick.
-            std::thread::sleep(Duration::from_millis(60));
+            // ////////////////std::thread::sleep(Duration::from_millis(60));
 
             Some(response)
         } else {

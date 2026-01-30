@@ -1,4 +1,4 @@
 # tests are single threaded. TODO: make tests work multithreaded.
-[env]
-RUST_TEST_THREADS = "1"
+# [env]
+# RUST_TEST_THREADS = "1"
 # RUST_LOG = "trace"

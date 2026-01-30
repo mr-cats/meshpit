@@ -2,11 +2,14 @@
 
 use std::time::Duration;
 
+// do NOT use MINECRAFT_TESTING_ENV directly!
+
+use futures::future::join_all;
+
 use crate::{
-    minecraft::{types::*, vanilla::block_type::MinecraftBlock},
+    minecraft::{types::*, vanilla::{block_type::MinecraftBlock, data_globals::get_mc_data}},
     tests::test_harness::{
-        ComputerConfigs, ComputerKind, ComputerSetup, MINECRAFT_TESTING_ENV, MinecraftTest,
-        TestArea, TestPassCondition, TestSetupCommand,
+        ComputerConfigs, ComputerKind, ComputerSetup, MinecraftTestHandle, TestArea, TestCommand,
     },
 };
 
@@ -19,59 +22,143 @@ async fn basic_block_test() {
     };
 
     // gold base
-    let base = TestSetupCommand::Fill(
-        MinecraftPosition { x: 1, y: 1, z: 1, facing: None },
-        MinecraftPosition { x: 3, y: 1, z: 3, facing: None },
+    let base = TestCommand::Fill(
+        MinecraftPosition {
+            x: 1,
+            y: 1,
+            z: 1,
+            facing: None,
+        },
+        MinecraftPosition {
+            x: 3,
+            y: 1,
+            z: 3,
+            facing: None,
+        },
         MinecraftBlock::from_string("gold_block").unwrap(),
     );
 
     // netherrack
-    let rack = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 2, z: 2, facing: None },
+    let rack = TestCommand::SetBlock(
+        MinecraftPosition {
+            x: 2,
+            y: 2,
+            z: 2,
+            facing: None,
+        },
         MinecraftBlock::from_string("netherrack").unwrap(),
     );
 
     // fire
-    let fire = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 3, z: 2, facing: None },
+    let fire = TestCommand::SetBlock(
+        MinecraftPosition {
+            x: 2,
+            y: 3,
+            z: 2,
+            facing: None,
+        },
         MinecraftBlock::from_string("fire").unwrap(),
     );
 
     // torch1
-    let torch1 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 1, y: 2, z: 2, facing: None },
+    let torch1 = TestCommand::SetBlock(
+        MinecraftPosition {
+            x: 1,
+            y: 2,
+            z: 2,
+            facing: None,
+        },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
     // torch2
-    let torch2 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 2, z: 1, facing: None },
+    let torch2 = TestCommand::SetBlock(
+        MinecraftPosition {
+            x: 2,
+            y: 2,
+            z: 1,
+            facing: None,
+        },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
     // torch3
-    let torch3 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 3, y: 2, z: 2, facing: None },
+    let torch3 = TestCommand::SetBlock(
+        MinecraftPosition {
+            x: 3,
+            y: 2,
+            z: 2,
+            facing: None,
+        },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
     // torch4
-    let torch4 = TestSetupCommand::SetBlock(
-        MinecraftPosition { x: 2, y: 2, z: 3, facing: None },
+    let torch4 = TestCommand::SetBlock(
+        MinecraftPosition {
+            x: 2,
+            y: 2,
+            z: 3,
+            facing: None,
+        },
         MinecraftBlock::from_string("redstone_torch").unwrap(),
     );
 
-    let setup_commands: Vec<TestSetupCommand> =
-        vec![base, rack, fire, torch1, torch2, torch3, torch4];
+    let build_commands: Vec<TestCommand> = vec![base, rack, fire, torch1, torch2, torch3, torch4];
 
-    let computers: Vec<ComputerSetup> = vec![];
+    let mut test = MinecraftTestHandle::new(area).await;
 
-    let passing_condition = TestPassCondition::Dummy;
+    // build the spawner
+    for cmd in build_commands {
+        assert!(test.command(cmd).await);
+    }
 
-    let timeout = Duration::from_secs(10);
+    // Check that the fire ended up in the correct position.
+    let fire_check = TestCommand::TestForBlock(
+        MinecraftPosition {
+            x: 2,
+            y: 3,
+            z: 2,
+            facing: None,
+        },
+        MinecraftBlock::from_string("fire").unwrap(),
+    );
 
-    let test = MinecraftTest::new(area, setup_commands, computers, passing_condition, timeout);
+    assert!(test.command(fire_check).await);
 
-    let result = MINECRAFT_TESTING_ENV.lock().await.run(test).await;
+    // if we made it here, the test has passed.
+    test.stop(true).await;
+}
 
-    assert!(result)
+#[tokio::test]
+/// Place every block
+async fn place_every_block() {
+    let area = TestArea {
+        size_x: 3,
+        size_z: 3,
+    };
+
+    let mut test = MinecraftTestHandle::new(area).await;
+
+    let block_pos = MinecraftPosition {
+        x: 1,
+        y: 1,
+        z: 1,
+        facing: None,
+    };
+    let data = get_mc_data();
+    
+    assert!(data.blocks_by_name.keys().len() != 0);
+    let mut failed: bool = false;
+    let mut failed_block: String = "".to_string();
+    for block in data.blocks_by_name.keys() {
+        if !test.command(TestCommand::SetBlock(block_pos, MinecraftBlock::from_string(block).unwrap())).await {
+            failed = true;
+            failed_block = block.to_string();
+            break
+        };
+    }
+    test.stop(!failed).await;
+    if failed {
+        panic!("Failed to place {failed_block} !")
+    }
 }
 
 #[tokio::test]
@@ -83,7 +170,12 @@ async fn basic_computer_test() {
     };
 
     // The facing direction of this computer does not matter.
-    let computer_position = MinecraftPosition { x: 1, y: 1, z: 1, facing: None };
+    let computer_position = MinecraftPosition {
+        x: 1,
+        y: 1,
+        z: 1,
+        facing: None,
+    };
 
     let computer = ComputerSetup::new(
         ComputerKind::Basic,
@@ -92,17 +184,16 @@ async fn basic_computer_test() {
         MinecraftFacingDirection::North,
     );
 
-    let setup_commands: Vec<TestSetupCommand> = vec![];
+    let setup_commands: Vec<TestCommand> = vec![];
 
     let computers: Vec<ComputerSetup> = vec![computer];
+    todo!("Bring back computers!");
 
-    let passing_condition = TestPassCondition::Dummy;
+    let test = MinecraftTestHandle::new(area).await;
+}
 
-    let timeout = Duration::from_secs(10);
-
-    let test = MinecraftTest::new(area, setup_commands, computers, passing_condition, timeout);
-
-    let result = MINECRAFT_TESTING_ENV.lock().await.run(test).await;
-
-    assert!(result)
+#[tokio::test]
+/// Place a computer that reaches out to a websocket and yells into it.
+async fn basic_websocket_test() {
+    todo!()
 }
