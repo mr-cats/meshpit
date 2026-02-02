@@ -6,14 +6,14 @@ use serde_json::Value;
 
 /// All of the tables we export from minecraft will be in this `key, value` pair format. Thus
 /// tables just turn into an array of pairs.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PairedLuaTable {
-    pairs: Vec<LuaKeyValuePair>
+    pub pairs: Vec<LuaKeyValuePair>
 }
 
 // For the key-value pairs seen in our table export format
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LuaKeyValuePair {
-    key: Value,
-    value: Value,
+    pub key: Value,
+    pub value: Value,
 }
