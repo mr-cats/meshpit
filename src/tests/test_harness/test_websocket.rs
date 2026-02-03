@@ -6,38 +6,40 @@
 use std::sync::{Arc, OnceLock};
 
 use dashmap::DashMap;
+use futures_util::{SinkExt, StreamExt};
 use log::warn;
-use tokio::{net::TcpListener, sync::{mpsc, OnceCell}};
-use tokio_tungstenite::tungstenite::{handshake::server::{Request, Response}};
-use futures_util::{StreamExt, SinkExt};
-
+use tokio::{
+    net::TcpListener,
+    sync::{OnceCell, mpsc},
+};
+use tokio_tungstenite::tungstenite::handshake::server::{Request, Response};
 
 // We force move the websocket to another thread, otherwise it would close between tests.
 static WEBSOCKET_RUNNING: OnceCell<()> = OnceCell::const_new();
 static GLOBAL_RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
 
 async fn run_websocket() {
-    WEBSOCKET_RUNNING.get_or_init(|| async {
-        // Move to another runtime so it lives forever!!!!!!
-        let rt = GLOBAL_RUNTIME.get_or_init(|| {
-            tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .expect("global runtime ded")
-        });
+    WEBSOCKET_RUNNING
+        .get_or_init(|| async {
+            // Move to another runtime so it lives forever!!!!!!
+            let rt = GLOBAL_RUNTIME.get_or_init(|| {
+                tokio::runtime::Builder::new_multi_thread()
+                    .enable_all()
+                    .build()
+                    .expect("global runtime ded")
+            });
 
-        // run the server on that new perma thread
-        rt.spawn(async move {
-            run_test_websocket_server().await
-        });
-        
-        // Wait a bit for it to bind.
-        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    }).await;
+            // run the server on that new perma thread
+            rt.spawn(async move { run_test_websocket_server().await });
+
+            // Wait a bit for it to bind.
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        })
+        .await;
 }
 
 /// A websocket that can send/receive to a computer.
-/// 
+///
 /// Having a test websocket does not guarantee that you will ever get a response.
 pub struct TestWebsocket {
     /// The ID of the computer this websocket is tied to.
@@ -64,7 +66,9 @@ fn get_registry() -> &'static Registry {
 async fn run_test_websocket_server() {
     // This is currently hardcoded.
     let address = "localhost:4816";
-    let listener = TcpListener::bind(address).await.expect("Failed to bind for websocket!");
+    let listener = TcpListener::bind(address)
+        .await
+        .expect("Failed to bind for websocket!");
 
     while let Ok((stream, _socket_addr)) = listener.accept().await {
         tokio::spawn(async move {
@@ -77,24 +81,33 @@ async fn run_test_websocket_server() {
                 // Pull out the computer ID if it exists.
                 if req.uri().path() != "/meshpit" {
                     warn!("Tried to connect at the non-meshpit uri! {req:#?}");
-                    return Err(Response::builder().status(404).body(Some("Invalid Path".into())).unwrap());
+                    return Err(Response::builder()
+                        .status(404)
+                        .body(Some("Invalid Path".into()))
+                        .unwrap());
                 }
                 // set protocol headers TODO: do we really need this
                 if let Some(sub) = req.headers().get("Sec-WebSocket-Protocol") {
-                    response.headers_mut().insert("Sec-WebSocket-Protocol", sub.clone());
+                    response
+                        .headers_mut()
+                        .insert("Sec-WebSocket-Protocol", sub.clone());
                 }
 
                 if let Some(id) = req.headers().get("Computer-ID") {
                     computer_id = Some(id.to_str().unwrap().parse::<u16>().unwrap());
                 } else {
                     // No computer id header.
-                    return Err(Response::builder().status(400).body(Some("Missing headers".into())).unwrap());
+                    return Err(Response::builder()
+                        .status(400)
+                        .body(Some("Missing headers".into()))
+                        .unwrap());
                 }
 
                 Ok(response)
             };
 
-            let websocket_stream = match tokio_tungstenite::accept_hdr_async(stream, callback).await {
+            let websocket_stream = match tokio_tungstenite::accept_hdr_async(stream, callback).await
+            {
                 Ok(ok) => ok,
                 Err(err) => panic!("Failed to accept websocket! {err:#?}"),
             };
@@ -120,14 +133,24 @@ async fn run_test_websocket_server() {
                 while let Some(Ok(message)) = websocket_receiver.next().await {
                     if let Ok(text) = message.into_text() {
                         // TODO: Replace this with a better websocket health check because this wastes packets
-                        if text.as_str().contains("{\"key\":\"data\",\"value\":\"\\\"health\\\"\"}") {
+                        if text
+                            .as_str()
+                            .contains("{\"key\":\"data\",\"value\":\"\\\"health\\\"\"}")
+                        {
                             // skip it as its a health packet only.
                             continue;
                         }
                         // close the socket if the person on the other side of the channel is gone.
                         // TODO: Performance: This makes heap allocated strings. This is slow. This will need to be swapped
                         // to some other format.
-                        if broker.to_test.send(text.as_str().to_string()).await.is_err() { break; }
+                        if broker
+                            .to_test
+                            .send(text.as_str().to_string())
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
                     }
                 }
             });
@@ -136,7 +159,9 @@ async fn run_test_websocket_server() {
             let outgoing = tokio::spawn(async move {
                 while let Some(message) = broker.from_test.recv().await {
                     // Close the socket if the computer doesn't accept the message.
-                    if websocket_sender.send(message.into()).await.is_err() { break; }
+                    if websocket_sender.send(message.into()).await.is_err() {
+                        break;
+                    }
                 }
             });
 
@@ -145,11 +170,9 @@ async fn run_test_websocket_server() {
                 _ = incoming => (),
                 _ = outgoing => (),
             }
-
         });
     }
 }
-
 
 impl TestWebsocket {
     /// Register that you want to talk to a computer. Will not block, so computer might not
@@ -178,8 +201,8 @@ impl TestWebsocket {
             id,
             ComputerChannel {
                 to_test: to_test_tx,
-                from_test: from_test_rx
-            }
+                from_test: from_test_rx,
+            },
         );
 
         // Now give back the other side of the channel to the caller
@@ -201,9 +224,8 @@ impl Drop for TestWebsocket {
     }
 }
 
-
 /// Basic test of the websockets.
-/// 
+///
 /// Very simple, really just seeing if stuff panics.
 /// We pick a very high socket number so we do not interfere with other tests.
 #[tokio::test]

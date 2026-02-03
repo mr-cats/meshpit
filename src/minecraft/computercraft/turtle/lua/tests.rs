@@ -69,19 +69,31 @@ async fn basic_networking_test() {
     // Turn on the computer, and wait for the ping message
     computer.turn_on(&mut test).await;
 
-    let ping = socket.receiver.recv().await.expect("Channel should be open.");
+    let ping = socket
+        .receiver
+        .recv()
+        .await
+        .expect("Channel should be open.");
     info!("Got ping!");
     info!("{ping}");
     assert!(ping.contains("ping"));
-    
+
     // send back
     info!("Sending pong...");
-    socket.sender.send("\"pong\"".to_string()).await.expect("Computer should be open to receive this.");
+    socket
+        .sender
+        .send("\"pong\"".to_string())
+        .await
+        .expect("Computer should be open to receive this.");
     info!("Sent.");
-    
+
     // Wait for the next response
     info!("Awaiting response...");
-    let response = socket.receiver.recv().await.expect("Channel should be open.");
+    let response = socket
+        .receiver
+        .recv()
+        .await
+        .expect("Channel should be open.");
     let pass_fail = response.contains("pass");
     info!("Got it! {response}");
     info!("Pass fail? {pass_fail}");
@@ -89,7 +101,11 @@ async fn basic_networking_test() {
         info!("Pass!");
         // Get the next packet too
         info!("Waiting for followup packet...");
-        let result = socket.receiver.recv().await.expect("Channel should be open.");
+        let result = socket
+            .receiver
+            .recv()
+            .await
+            .expect("Channel should be open.");
         info!("Got it!");
         info!("{result}");
     } else {

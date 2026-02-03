@@ -24,7 +24,7 @@ impl ComputerSetup {
 
 /// Some libraries implicitly require other libraries. This will put the libraries into the turtle's storage,
 /// but will not load them, you will still have to load them yourself.
-/// 
+///
 /// You can create invalid combinations, and this is by design.
 #[derive(Debug, Clone, Copy)]
 pub struct MeshpitLibraries {
@@ -42,8 +42,9 @@ impl MeshpitLibraries {
     /// Get a Vec containing all of the paths to the libraries.
     pub fn to_files(self) -> Vec<PathBuf> {
         let mut paths: Vec<PathBuf> = vec![];
-        
-        let lua_folder = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/minecraft/computercraft/turtle/lua");
+
+        let lua_folder = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src/minecraft/computercraft/turtle/lua");
         if self.networking.unwrap_or(false) {
             paths.push(lua_folder.join("networking.lua"));
         };
@@ -59,7 +60,12 @@ impl MeshpitLibraries {
         paths
     }
     pub fn new() -> Self {
-        Self { networking: None, walkback: None, panic: None, helpers: None }
+        Self {
+            networking: None,
+            walkback: None,
+            panic: None,
+            helpers: None,
+        }
     }
 }
 impl Default for MeshpitLibraries {
@@ -67,7 +73,6 @@ impl Default for MeshpitLibraries {
         Self::new()
     }
 }
-
 
 // TODO: Use the same type as the computer kind we store in the database, whenever that is made.
 #[derive(Clone, Copy)]
@@ -101,7 +106,7 @@ pub enum ComputerConfigs {
     /// not include any of the standard libraries that meshpit uses. Use StartupIncludingLibraries instead.
     Startup(String),
     /// Adds a `startup.lua` file to this computer, additionally including some meshpit libraries.
-    StartupIncludingLibraries(String, MeshpitLibraries)
+    StartupIncludingLibraries(String, MeshpitLibraries),
 }
 
 // =========

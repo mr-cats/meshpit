@@ -230,9 +230,7 @@ impl MinecraftTestHandle {
         // Update files if needed.
         match setup.config {
             #[allow(deprecated)] // we still need to match it
-            ComputerConfigs::Empty => {
-                /* nothing to do */
-            }
+            ComputerConfigs::Empty => { /* nothing to do */ }
             // ComputerConfigs::Websocket(port) => todo!(),
             ComputerConfigs::Startup(startup) => {
                 add_file_to_computer(new_computer.id, startup, "startup.lua")
@@ -245,9 +243,16 @@ impl MinecraftTestHandle {
                     .expect("Unable to write startup lua file.");
                 // Loop over he libraries and add them
                 for path in libraries.to_files() {
-                    let file_contents = std::fs::read_to_string(&path).expect("Unable to read lua file!");
-                    let file_name = path.file_name().expect("Should have a file name").to_str().expect("Should be valid.");
-                    add_file_to_computer(new_computer.id, file_contents, file_name).await.expect("Unable to write a lua file to the computer!");
+                    let file_contents =
+                        std::fs::read_to_string(&path).expect("Unable to read lua file!");
+                    let file_name = path
+                        .file_name()
+                        .expect("Should have a file name")
+                        .to_str()
+                        .expect("Should be valid.");
+                    add_file_to_computer(new_computer.id, file_contents, file_name)
+                        .await
+                        .expect("Unable to write a lua file to the computer!");
                 }
             }
         }
@@ -258,7 +263,7 @@ impl MinecraftTestHandle {
 }
 
 /// Create a file on a computer.
-/// 
+///
 /// Make sure to include the file extension if needed.
 ///
 /// This function assumes the computer has already created its folder.

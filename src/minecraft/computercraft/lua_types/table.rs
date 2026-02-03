@@ -8,7 +8,7 @@ use serde_json::Value;
 /// tables just turn into an array of pairs.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PairedLuaTable {
-    pub pairs: Vec<LuaKeyValuePair>
+    pub pairs: Vec<LuaKeyValuePair>,
 }
 
 // For the key-value pairs seen in our table export format
